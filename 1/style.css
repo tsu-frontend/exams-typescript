@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=Mulish:ital,wght@0,200..1000;1,200..1000&display=swap');
+
+body{
+    margin: 0;
+    padding: 0;
+}
+*{  
+    font-family: "Mulish", sans-serif;
+    box-sizing: border-box;
+}
+svg{
+    width: 30px;
+    height: 30px;
+    fill: rgb(132, 83, 132);
+    cursor: pointer;
+}
+svg:hover{
+transform: rotate(10deg);
+}
+
+header{
+    height: 90px;
+    background-color:bisque;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+a{
+    text-decoration: none;
+    color: rgb(64, 64, 97);
+}
+a.facebook svg{
+    width: 20px;
+    height: 20px;
+    fill:rgb(47, 47, 119) ;
+}
+a.mail svg{
+    width: 20px;
+    height: 20px;
+    fill:rgb(60, 157, 164) ;
+}
+a.instagram svg{
+    width: 20px;
+    height: 20px;
+    fill:rgb(164, 79, 18);
+}
+nav{
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+section{
+    height: 400px;
+   
+}
+
+div.dropdown{
+    position: relative;
+}
+div.dropdown-box{
+    position: absolute;
+    border-radius: 10px;
+    display: none;
+    flex-direction:column ;
+    background-color: rgb(185, 164, 164);
+}
+
+
+div.dropdown:hover div.dropdown-box{
+display: flex;
+}
+
+div.dropdown-box a{
+    display: flex;
+    gap: 20px;
+}
+
+div.product img{
+    width: 200px;
+    height: 200px;
+
+}
+div.product img:hover{
+    transform: scale(1.1);
+    cursor: pointer;
+}
+
+section{
+    display: flex;
+    gap: 15px;
+  justify-content: center;
+}
+
+div.product article{
+    width:200px ;
+}
+p.price{
+    color: green;
+}
+p.header{
+    font-weight: 700;
+}
+
+@media screen and (max-width: 1690px){
+    section{
+        flex-wrap: wrap;
+    }
+}
+

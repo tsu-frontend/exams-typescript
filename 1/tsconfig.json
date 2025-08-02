@@ -1,0 +1,24 @@
+{
+
+  "compilerOptions": {
+  
+    "rootDir": "../2",
+    "outDir": "../dist",
+
+    
+    "module": "es6",
+    "target": "es6",
+      
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+ 
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    "strict": true,
+  
+    "skipLibCheck": true,
+  }
+}
