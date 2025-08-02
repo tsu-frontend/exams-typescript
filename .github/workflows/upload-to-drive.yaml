@@ -1,0 +1,167 @@
+name: Upload Folders to Google Drive
+
+on:
+  workflow_dispatch:
+
+env:
+  SHARED_DRIVE_ID: 0AB0RNCuKw3HUUk9PVA # Your shared drive ID
+  TARGET_FOLDER_NAME: typescript-exams # The folder name within the shared drive
+
+jobs:
+  upload-folders:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository with all branches
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # fetch full history and all branches
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
+      - name: Upload to Google Drive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        run: |
+          python - <<EOF
+          import os
+          import json
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+          from googleapiclient.errors import HttpError
+          import base64
+
+          # Decode and write service account credentials
+          creds_json = base64.b64decode(os.environ['GOOGLE_APPLICATION_CREDENTIALS']).decode('utf-8')
+          with open('service-account.json', 'w') as f:
+              f.write(creds_json)
+
+          # Set up credentials
+          credentials = service_account.Credentials.from_service_account_file(
+              'service-account.json',
+              scopes=['https://www.googleapis.com/auth/drive.file']
+          )
+
+          # Build the Drive API service
+          service = build('drive', 'v3', credentials=credentials)
+
+          # Create output directory
+          OUTPUT_DIR = "exams"
+          os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+          # Process each branch
+          for branch in os.popen('git branch -r | grep -v "\\->" | grep -v "HEAD"').read().splitlines():
+              branch = branch.strip()
+              clean_branch = branch.replace('origin/', '')
+              print(f"Processing branch: {clean_branch}")
+              
+              # Checkout branch
+              os.system(f'git checkout -f "{clean_branch}"')
+              
+              # Create branch directory
+              target_dir = f"{OUTPUT_DIR}/{clean_branch}"
+              os.makedirs(target_dir, exist_ok=True)
+              
+              # Copy folders
+              for item in os.listdir('.'):
+                  if os.path.isdir(item) and item not in ['.git', OUTPUT_DIR]:
+                      print(f"Copying {item} from {clean_branch}")
+                      os.system(f'cp -r "{item}" "{target_dir}/"')
+
+          def get_or_create_folder_in_shared_drive(folder_name, parent_id=None):
+              try:
+                  # Search for the folder in the shared drive
+                  query = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder'"
+                  if parent_id:
+                      query += f" and '{parent_id}' in parents"
+                  
+                  results = service.files().list(
+                      q=query,
+                      spaces='drive',
+                      corpora='drive',
+                      driveId=os.environ['SHARED_DRIVE_ID'],
+                      includeItemsFromAllDrives=True,
+                      supportsAllDrives=True,
+                      fields='files(id, name)'
+                  ).execute()
+                  
+                  items = results.get('files', [])
+                  
+                  if items:
+                      print(f"Found existing folder: {folder_name}")
+                      return items[0]['id']
+                  else:
+                      # Create the folder
+                      folder_metadata = {
+                          'name': folder_name,
+                          'mimeType': 'application/vnd.google-apps.folder',
+                          'parents': [parent_id] if parent_id else [os.environ['SHARED_DRIVE_ID']]
+                      }
+                      
+                      folder = service.files().create(
+                          body=folder_metadata,
+                          fields='id',
+                          supportsAllDrives=True
+                      ).execute()
+                      
+                      print(f"Created new folder: {folder_name}")
+                      return folder['id']
+              except HttpError as error:
+                  print(f"Error accessing shared drive: {error}")
+                  raise
+
+          # Upload to Google Drive
+          def upload_folder(folder_path, parent_id):
+              try:
+                  # Create folder in Drive
+                  folder_name = os.path.basename(folder_path)
+                  folder_id = get_or_create_folder_in_shared_drive(folder_name, parent_id)
+                  
+                  # Upload contents
+                  for item in os.listdir(folder_path):
+                      item_path = os.path.join(folder_path, item)
+                      if os.path.isdir(item_path):
+                          upload_folder(item_path, folder_id)
+                      else:
+                          file_metadata = {
+                              'name': item,
+                              'parents': [folder_id]
+                          }
+                          media = MediaFileUpload(
+                              item_path,
+                              resumable=True
+                          )
+                          service.files().create(
+                              body=file_metadata,
+                              media_body=media,
+                              fields='id',
+                              supportsAllDrives=True
+                          ).execute()
+                          print(f"Uploaded file: {item}")
+              except HttpError as error:
+                  print(f"An error occurred: {error}")
+                  raise
+
+          try:
+              # Get or create the target folder in the shared drive
+              target_folder_id = get_or_create_folder_in_shared_drive(os.environ['TARGET_FOLDER_NAME'])
+              print(f"Uploading to folder: {os.environ['TARGET_FOLDER_NAME']}")
+              upload_folder(OUTPUT_DIR, target_folder_id)
+          except HttpError as error:
+              print(f"Failed to upload: {error}")
+              raise
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f service-account.json
