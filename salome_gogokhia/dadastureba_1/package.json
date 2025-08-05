@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  },
+  "scripts": {
+    "tscompilatori": "npx tsc",
+    "ts-watch-mode": "npx tsc --watch"
+  }
+}
